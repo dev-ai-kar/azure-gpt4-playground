@@ -27,23 +27,25 @@ const defaultContext = {
   } as OpenAISystemMessage,
   messages: [] as OpenAIChatMessage[],
   config: defaultConfig as OpenAIConfig,
-  updateSystemMessage: (content: string) => {},
-  addMessage: () => {},
-  removeMessage: (id: number) => {},
+  updateSystemMessage: (content: string) => { },
+  addMessage: () => { },
+  removeMessage: (id: number) => { },
   conversationName: "",
   conversationId: "",
-  deleteConversation: () => {},
-  updateConversationName: () => {},
+  deleteConversation: () => { },
+  updateConversationName: () => { },
   conversations: {} as History,
-  clearConversations: () => {},
-  clearConversation: () => {},
-  loadConversation: (id: string, conversation: Conversation) => {},
-  toggleMessageRole: (id: number) => {},
-  updateMessageContent: (id: number, content: string) => {},
-  updateConfig: (newConfig: Partial<OpenAIConfig>) => {},
-  submit: () => {},
+  clearConversations: () => { },
+  clearConversation: () => { },
+  loadConversation: (id: string, conversation: Conversation) => { },
+  toggleMessageRole: (id: number) => { },
+  updateMessageContent: (id: number, content: string) => { },
+  updateConfig: (newConfig: Partial<OpenAIConfig>) => { },
+  submit: () => { },
   loading: true,
   error: "",
+  streamCompleted: false, // Add this line  
+  resetLoading: () => { }, // Add this line
 };
 
 const OpenAIContext = React.createContext<{
@@ -71,6 +73,8 @@ const OpenAIContext = React.createContext<{
   submit: () => void;
   loading: boolean;
   error: string;
+  // streamCompleted: boolean; // Add this line  
+  // resetLoading: () => void; // Add this line 
 }>(defaultContext);
 
 export default function OpenAIProvider({ children }: PropsWithChildren) {
@@ -90,6 +94,15 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
   );
   const [config, setConfig] = React.useState<OpenAIConfig>(defaultConfig);
   const [messages, setMessages] = React.useState<OpenAIChatMessage[]>([]);
+
+  // // Add this line in your state  
+  // const [streamCompleted, setStreamCompleted] = React.useState(false);
+
+  // // Add this function to reset the loading state  
+  // const resetLoading = () => {
+  //   setLoading(false);
+  //   setStreamCompleted(false);
+  // };
 
   // Load conversation from local storage
   useEffect(() => {
@@ -237,14 +250,14 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
 
   const submit = useCallback(
     async (messages_: OpenAIChatMessage[] = []) => {
-      // if (loading) return;
+      if (loading) return;
       setLoading(true);
 
       messages_ = messages_.length ? messages_ : messages;
 
       try {
-        // const decoder = new TextDecoder();
-        const response: Response = await fetch("/api/completion", {
+        const decoder = new TextDecoder();
+        const { body, ok } = await fetch("/api/completion", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -261,24 +274,23 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
           }),
         });
 
-        // if (!body) return;
-        // const reader = body.getReader();
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
+        if (!body) return;
+        const reader = body.getReader();
 
-        // if (!ok) {
-        //   // Get the error message from the response body
-        //   const { value } = await reader.read();
-        //   const chunkValue = decoder.decode(value);
-        //   const { error } = JSON.parse(chunkValue);
+        if (!ok) {
+          // Get the error message from the response body  
+          const { value } = await reader.read();
+          const chunkValue = decoder.decode(value);
+          const { error } = JSON.parse(chunkValue);
 
-        //   throw new Error(
-        //     error?.message ||
-        //       "Failed to fetch response, check your API key and try again."
-        //   );
-        // }
+          throw new Error(
+            error?.message ||
+            "Failed to fetch response, check your API key and try again."
+          );
+        }
 
         let done = false;
+        console.log('1.DONE:',done)
 
         const message = {
           id: messages_.length,
@@ -290,20 +302,21 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
           message.id = prev.length;
           return [...prev, message];
         });
+        console.log('2.DONE:',done)
 
-        while (true) {
+        while (!done) {
+          console.log('3.DONE:',done)
           const { value, done: doneReading } = await reader.read();
-          if (doneReading) console.log('done reading')
-          if (doneReading) break;
-          
+          done = doneReading;
+          console.log('4.DONE:',done)
           const chunkValue = decoder.decode(value);
           message.content += chunkValue;
-          if (doneReading) console.log('done reading')
-
+          
           updateMessageContent(message.id as number, message.content);
-          if (doneReading) setLoading(false);
-          if (doneReading) console.log('done reading')
+          if (done) {setLoading(false)};
         }
+        if (done) {setLoading(false)};
+        console.log('Final.DONE:',done)
       } catch (error: any) {
         setMessages((prev) => {
           return [
@@ -321,6 +334,7 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
     },
     [config, messages, systemMessage, loading, token]
   );
+
 
   const addMessage = useCallback(
     (
@@ -366,6 +380,8 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
       updateConfig,
       submit,
       error,
+      // streamCompleted, // Add this line  
+      // resetLoading, // Add this line  
     }),
     [
       systemMessage,

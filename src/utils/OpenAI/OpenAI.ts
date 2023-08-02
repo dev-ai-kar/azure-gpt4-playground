@@ -6,9 +6,9 @@ import {
 } from "eventsource-parser";
 
 export const defaultConfig = {
-  model: "gpt-3.5-turbo",
+  model: "gpt-4",
   temperature: 0.5,
-  max_tokens: 2048,
+  max_tokens: 1000,
   top_p: 1,
   frequency_penalty: 0,
   presence_penalty: 0.6,
@@ -18,21 +18,39 @@ export type OpenAIRequest = {
   messages: OpenAIChatMessage[];
 } & OpenAIConfig;
 
+const API_KEY = process.env.AZURE_OPENAI_API_KEY;
+const RESOURCE_NAME = process.env.AZURE_OPENAI_ENDPOINT;
+const API_VERSION = process.env.API_VERSION;
+
+
 export const getOpenAICompletion = async (
   token: string,
   payload: OpenAIRequest
 ) => {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+  const MODEL_NAME = payload.model; // Extract the model name from the payload
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const headers = {  
+    "api-key": API_KEY || "",
+    "Content-Type": "application/json",
+  };  
+
+  // console.log(
+  //   `${RESOURCE_NAME}openai/deployments/${MODEL_NAME}/chat/completions?api-version=${API_VERSION}`
+  // )
+  // console.log(payload)
+  // console.log(headers)
+  
+  const response = await fetch(
+    `${RESOURCE_NAME}openai/deployments/${MODEL_NAME}/chat/completions?api-version=${API_VERSION}`,
+    {
+      method: 'POST',  
+      headers: headers, 
+      body: JSON.stringify(payload),
+    });
+    
+    // console.log(response)
 
   // Check for errors
   if (!response.ok) {

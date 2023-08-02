@@ -10,7 +10,7 @@ export default function useModels() {
   const [models, setModels] = React.useState<OpenAIModel[]>([]);
   const [loadingModels, setLoadingModels] = React.useState(false);
 
-  React.useEffect(() => {    
+  React.useEffect(() => {
     if (!token) {
       return setModels(Object.values(OpenAIChatModels));
     };
@@ -25,7 +25,7 @@ export default function useModels() {
         },
       })
         .then((res) => res.json())
-        .then((res) => res.chatModels);
+        .then((res) => res.data); // Update this line to match the response data structure  
 
       setModels(models || []);
       setLoadingModels(false);
